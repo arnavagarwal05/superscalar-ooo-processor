@@ -47,7 +47,12 @@ end architecture;
 
 ------------------------------------------------------------------------
 
--- Data Memory — dual port
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.pkg.all;
+
+-- Data Memory - dual port
 -- Port A and Port B can each independently read or write
 -- Byte-addressed, 16-bit data words
 -- Used by: execution pipes for loads, store buffer drain for stores

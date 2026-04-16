@@ -154,7 +154,7 @@ begin
       for i in 0 to 9 loop
         wait until rising_edge(clk);
       end loop;
-      report "Cycle monitor — R1=" & to_hstring(regs_out(1))
+      report "Cycle monitor - R1=" & to_hstring(regs_out(1))
            & " R2=" & to_hstring(regs_out(2))
            & " R3=" & to_hstring(regs_out(3))
            & " C=" & std_logic'image(c_flag)

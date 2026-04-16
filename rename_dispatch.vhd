@@ -342,8 +342,8 @@ begin
       rs1.is_store      := dec1.is_store;
       rs1.is_load       := dec1.is_load;
       rs1.is_branch     := dec1.is_branch;
-      rs1.is_jump       := dec1.is_jump;;
-      rs1.needs_c       := dec1.reads_c
+      rs1.is_jump       := dec1.is_jump;
+      rs1.needs_c       := dec1.reads_c;
       rs1.needs_z       := dec1.reads_z;
 
       if dec1.opcode = OP_JAL or dec1.opcode = OP_JRI or dec1.opcode = OP_LLI
