@@ -13,7 +13,11 @@ entity superscalar_top is
     -- Testbench outputs
     regs_out : out reg_file_t;
     c_flag   : out std_logic;
-    z_flag   : out std_logic
+    z_flag   : out std_logic;
+    -- Instruction memory write port (for testbench initialization)
+    imem_wr_en   : in std_logic;
+    imem_wr_addr : in std_logic_vector(15 downto 0);
+    imem_wr_data : in std_logic_vector(15 downto 0)
   );
 end entity;
 
@@ -124,7 +128,7 @@ begin
 
   u_imem : entity work.instr_mem
     port map(clk, imem_addr, imem_data,
-      '0', x"0000", x"0000");  -- write port unused in normal operation
+      imem_wr_en, imem_wr_addr, imem_wr_data);
 
   u_dec0 : entity work.decoder
     port map(f_instr1, f_pc1, f_valid1, dec0);
