@@ -174,6 +174,10 @@ begin
         if rob_num_free < 1 or rs_num_free < 1 then
           do_stall := '1';
         end if;
+      elsif dec1.valid = '1' then
+        if rob_num_free < 1 or rs_num_free < 1 then
+          do_stall := '1';
+        end if;
       end if;
     end if;
 
@@ -220,7 +224,7 @@ begin
         else
           -- Check ROB for completed value
           -- We use rob_rd port 0 for this
-          rs0.opr1 := x"000" & reg_rat(to_integer(unsigned(dec0.src1_reg))).rob_tag;
+          rs0.opr1 := x"000" & reg_rat(to_integer(unsigned(dec0.src1_reg))).rob_tag; -- 000 is just for making 12 zero bits and 4 tag bits
           rs0.v1   := '0';
           -- Will be resolved by CDB snoop or checked at issue time
         end if;
@@ -338,8 +342,8 @@ begin
       rs1.is_store      := dec1.is_store;
       rs1.is_load       := dec1.is_load;
       rs1.is_branch     := dec1.is_branch;
-      rs1.is_jump       := dec1.is_jump;
-      rs1.needs_c       := dec1.reads_c;
+      rs1.is_jump       := dec1.is_jump;;
+      rs1.needs_c       := dec1.reads_c
       rs1.needs_z       := dec1.reads_z;
 
       if dec1.opcode = OP_JAL or dec1.opcode = OP_JRI or dec1.opcode = OP_LLI
@@ -449,7 +453,18 @@ begin
     rob_alloc_en1   <= can_dispatch1;
     rob_alloc_data1 <= rob1;
 
-    -- ROB read ports: we use these to check if tagged operands are done
+    -- ROB read ports: we use these to check if tagged operands are done. so that we can grab the value immediately instead of waiting in the RS. 
+    -- The problem is specifically about newly dispatched instructions. Consider this example timeline:
+    -- Cycle 1: Instr A executes → puts result on CDB
+    --         → ROB marks entry X as done
+    --         → RS updates any entries waiting on tag X   ← existing RS entries catch it
+
+    -- Cycle 2: Instr B is dispatched
+    --         → RAT says src2 = ROB tag X
+    --         → ROB entry X is already done (from cycle 1)
+    --         → But CDB broadcast for X is GONE — it was only on the bus for one cycle
+    --         → RS entry for B created with v2=0, tag=X
+    --         → RS will wait forever for a CDB broadcast that already happened
     -- For simplicity, connect to I1's src1 RAT tag and I2's src1 RAT tag
     rob_rd_tag0 <= reg_rat(to_integer(unsigned(dec0.src1_reg))).rob_tag;
     rob_rd_tag1 <= rat_after_i1(to_integer(unsigned(dec1.src1_reg))).rob_tag;
@@ -477,8 +492,7 @@ begin
         reg_rat(to_integer(unsigned(dec0.dest_reg))).rob_tag <= rob_alloc_tag0;
       end if;
 
-      -- Update RAT for I2 (overwrites I1's update if same dest — correct,
-      -- since I2 is later in program order)
+      -- Update RAT for I2 (overwrites I1's update if same dest — correct, since I2 is later in program order)
       if dec1.valid = '1' and dec1.has_dest = '1' then
         reg_rat(to_integer(unsigned(dec1.dest_reg))).valid   <= '1';
         reg_rat(to_integer(unsigned(dec1.dest_reg))).rob_tag <= rob_alloc_tag1;

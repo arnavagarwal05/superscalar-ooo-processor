@@ -83,7 +83,7 @@ begin
   b_data_out <= mem(to_integer(unsigned(b_addr(15 downto 1)))) when b_rd_en = '1'
                 else (others => '0');
 
-  -- Sync writes (port A priority over port B if same address)
+  -- Sync writes (port B priority over port A if same address)
   process(clk)
   begin
     if rising_edge(clk) then

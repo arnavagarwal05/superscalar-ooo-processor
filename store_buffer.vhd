@@ -55,16 +55,20 @@ begin
   process(all)
     variable hit : std_logic;
     variable dat : std_logic_vector(15 downto 0);
+    variable idx : unsigned(1 downto 0);
   begin
     hit := '0';
     dat := (others => '0');
 
     if fwd_check_en = '1' then
-      -- Search from oldest to newest; newest match overwrites
-      for i in 0 to SB_SIZE-1 loop
-        if entries(i).valid = '1' and entries(i).addr = fwd_check_addr then
+      -- Iterate from oldest (drain_ptr) to newest (wr_ptr-1)
+      -- 2-bit arithmetic wraps naturally, same as the pointers
+      for j in 0 to SB_SIZE-1 loop
+        idx := drain_ptr + to_unsigned(j, 2);
+        if entries(to_integer(idx)).valid = '1'
+          and entries(to_integer(idx)).addr = fwd_check_addr then
           hit := '1';
-          dat := entries(i).data;
+          dat := entries(to_integer(idx)).data;  -- later match overwrites → newest wins
         end if;
       end loop;
     end if;

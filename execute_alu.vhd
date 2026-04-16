@@ -203,8 +203,8 @@ begin
     -------------------------------------------------------------------
     cdb.branch_taken  := taken;
     cdb.branch_target := target;
-    if is_branch_in = '1' then
-      if taken /= predicted_taken then
+    if is_branch_in = '1' then      -- if the current instr is a branch 
+      if taken /= predicted_taken then    -- if the actual branch outcome differs from the predicted outcome
         cdb.mispredicted := '1';
       elsif taken = '1' and target /= pc_in then
         -- Both predicted taken, but wrong target (shouldn't happen with our scheme)
