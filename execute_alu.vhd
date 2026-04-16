@@ -55,7 +55,8 @@ begin
     cdb := CDB_EMPTY;
     cdb.valid   := valid_in;
     cdb.rob_tag := rob_tag_in;
-    cdb.is_store := is_store_in;
+    cdb.is_store  := is_store_in;
+    cdb.is_load   := is_load_in;
     cdb.is_branch := is_branch_in;
 
     result    := (others => '0');

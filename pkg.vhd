@@ -217,6 +217,8 @@ package pkg is
     is_store     : std_logic;
     store_addr   : std_logic_vector(15 downto 0);
     store_data   : std_logic_vector(15 downto 0);
+    -- load info
+    is_load      : std_logic;
   end record;
 
   constant CDB_EMPTY : cdb_t := (
@@ -225,7 +227,8 @@ package pkg is
     is_nop => '0',
     is_branch => '0', branch_taken => '0', branch_target => x"0000",
     mispredicted => '0',
-    is_store => '0', store_addr => x"0000", store_data => x"0000"
+    is_store => '0', store_addr => x"0000", store_data => x"0000",
+    is_load => '0'
   );
 
   --------------------------------------------------------------------------

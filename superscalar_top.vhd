@@ -91,8 +91,9 @@ architecture rtl of superscalar_top is
   signal rs_issue0_entry, rs_issue1_entry : rs_entry_t;
   signal rs_num_free                     : unsigned(3 downto 0);
 
-  -- CDB
-  signal cdb0, cdb1 : cdb_t;
+  -- CDB: _pre = raw ALU output, final cdb0/cdb1 has memory data substituted for loads
+  signal cdb0_pre, cdb1_pre : cdb_t;
+  signal cdb0, cdb1         : cdb_t;
 
   -- Store buffer
   signal sb_commit_en0, sb_commit_en1   : std_logic;
@@ -214,7 +215,7 @@ begin
       rs_issue0_entry.is_branch, rs_issue0_entry.is_jump,
       x"0000",  -- old_dest_val (TODO: pass through from ROB)
       '0',      -- predicted_taken (TODO: pass through from ROB)
-      cdb0);
+      cdb0_pre);
 
   -- Execute pipe 1
   u_exec1 : entity work.execute_alu
@@ -230,7 +231,7 @@ begin
       rs_issue1_entry.is_branch, rs_issue1_entry.is_jump,
       x"0000",  -- old_dest_val
       '0',      -- predicted_taken
-      cdb1);
+      cdb1_pre);
 
   u_rob : entity work.rob
     port map(clk, reset, flush,
@@ -271,17 +272,60 @@ begin
       dmem_a_addr, dmem_a_din, dmem_a_dout, dmem_a_wr, dmem_a_rd,
       dmem_b_addr, dmem_b_din, dmem_b_dout, dmem_b_wr, dmem_b_rd);
 
-  -- Store buffer drain -> data memory port A
+  -- Store buffer drain -> data memory port A (writes only)
   dmem_a_addr <= sb_drain_addr;
   dmem_a_din  <= sb_drain_data;
   dmem_a_wr   <= sb_drain_valid;
-  dmem_a_rd   <= '0';  -- TODO: connect load pipe 0
-
-  -- Data memory port B: for load pipe 1 or second drain
-  dmem_b_addr <= (others => '0');  -- TODO: connect load pipe 1
-  dmem_b_din  <= (others => '0');
+  dmem_a_rd   <= '0';
+  dmem_b_din  <= (others => '0');  -- port B is read-only (loads)
   dmem_b_wr   <= '0';
-  dmem_b_rd   <= '0';
+
+  --------------------------------------------------------------------------
+  -- Load data path (combinational)
+  -- execute_alu puts the computed address in cdb_pre.result for loads.
+  -- Route that address to data memory port B (async read), then replace
+  -- result with the returned data before broadcasting on the final CDB.
+  -- Pipe 0 gets priority; pipe 1 uses port B only if pipe 0 has no load.
+  -- Note: two simultaneous loads are not supported (no second read port).
+  --------------------------------------------------------------------------
+  process(all)
+    variable c0 : cdb_t;
+    variable c1 : cdb_t;
+  begin
+    c0 := cdb0_pre;
+    c1 := cdb1_pre;
+
+    -- Default: no load read on port B
+    dmem_b_addr <= (others => '0');
+    dmem_b_rd   <= '0';
+
+    if cdb0_pre.valid = '1' and cdb0_pre.is_load = '1' then
+      -- Pipe 0 has a load: send address to port B
+      dmem_b_addr  <= cdb0_pre.result;
+      dmem_b_rd    <= '1';
+      -- Replace result with loaded data; recompute Z
+      c0.result    := dmem_b_dout;
+      if dmem_b_dout = x"0000" then
+        c0.z_val := '1';
+      else
+        c0.z_val := '0';
+      end if;
+
+    elsif cdb1_pre.valid = '1' and cdb1_pre.is_load = '1' then
+      -- Pipe 1 has a load and pipe 0 does not: use port B for pipe 1
+      dmem_b_addr  <= cdb1_pre.result;
+      dmem_b_rd    <= '1';
+      c1.result    := dmem_b_dout;
+      if dmem_b_dout = x"0000" then
+        c1.z_val := '1';
+      else
+        c1.z_val := '0';
+      end if;
+    end if;
+
+    cdb0 <= c0;
+    cdb1 <= c1;
+  end process;
 
   -- Flag outputs
   c_flag <= c_arch;
