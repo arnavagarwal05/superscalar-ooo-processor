@@ -10,7 +10,7 @@ use work.pkg.all;
 
 entity instr_mem is
   port(
-    clk      : in  std_logic;
+    clk      : in std_logic;
     addr     : in  std_logic_vector(15 downto 0);  -- PC value
     data_out : out std_logic_vector(31 downto 0);   -- 2 instructions
 
