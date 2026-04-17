@@ -49,6 +49,9 @@ entity rename_dispatch is
     rob_rd_c1      : in  std_logic;
     rob_rd_z1      : in  std_logic;
 
+    -- Full ROB entries array (for operand resolution at dispatch)
+    rob_entries    : in  rob_array_t;
+
     -- ARF read ports (6: 2 src regs x 2 instructions + 1 dest reg x 2 instructions)
     arf_rd_addr0 : out std_logic_vector(2 downto 0);
     arf_rd_data0 : in  std_logic_vector(15 downto 0);
@@ -232,11 +235,14 @@ begin
           rs0.opr1 := arf_rd_data0;
           rs0.v1   := '1';
         else
-          -- Check ROB for completed value
-          -- We use rob_rd port 0 for this
-          rs0.opr1 := x"000" & reg_rat(to_integer(unsigned(dec0.src1_reg))).rob_tag; -- 000 is just for making 12 zero bits and 4 tag bits
-          rs0.v1   := '0';
-          -- Will be resolved by CDB snoop or checked at issue time
+          opr_tag := reg_rat(to_integer(unsigned(dec0.src1_reg))).rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs0.opr1 := rob_entries(to_integer(unsigned(opr_tag))).result;
+            rs0.v1   := '1';
+          else
+            rs0.opr1 := x"000" & opr_tag;
+            rs0.v1   := '0';
+          end if;
         end if;
       else
         -- No src1 register (e.g., LLI, JAL)
@@ -250,8 +256,14 @@ begin
           rs0.opr2 := arf_rd_data1;
           rs0.v2   := '1';
         else
-          rs0.opr2 := x"000" & reg_rat(to_integer(unsigned(dec0.src2_reg))).rob_tag;
-          rs0.v2   := '0';
+          opr_tag := reg_rat(to_integer(unsigned(dec0.src2_reg))).rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs0.opr2 := rob_entries(to_integer(unsigned(opr_tag))).result;
+            rs0.v2   := '1';
+          else
+            rs0.opr2 := x"000" & opr_tag;
+            rs0.v2   := '0';
+          end if;
         end if;
       else
         -- No src2 register: operand 2 is immediate (already in rs0.imm)
@@ -266,8 +278,14 @@ begin
           rs0.c_val   := c_arch;
           rs0.c_ready := '1';
         else
-          rs0.c_tag   := flag_c.rob_tag;
-          rs0.c_ready := '0';
+          opr_tag := flag_c.rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs0.c_val   := rob_entries(to_integer(unsigned(opr_tag))).c_val;
+            rs0.c_ready := '1';
+          else
+            rs0.c_tag   := opr_tag;
+            rs0.c_ready := '0';
+          end if;
         end if;
       else
         rs0.c_ready := '1';  -- don't need it, always ready
@@ -279,8 +297,14 @@ begin
           rs0.z_val   := z_arch;
           rs0.z_ready := '1';
         else
-          rs0.z_tag   := flag_z.rob_tag;
-          rs0.z_ready := '0';
+          opr_tag := flag_z.rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs0.z_val   := rob_entries(to_integer(unsigned(opr_tag))).z_val;
+            rs0.z_ready := '1';
+          else
+            rs0.z_tag   := opr_tag;
+            rs0.z_ready := '0';
+          end if;
         end if;
       else
         rs0.z_ready := '1';
@@ -293,11 +317,17 @@ begin
       -- Only meaningful when is_predicated=1; RS snoops CDB if not yet available
       if dec0.is_predicated = '1' and dec0.has_dest = '1' then
         if reg_rat(to_integer(unsigned(dec0.dest_reg))).valid = '0' then
-          rs0.old_dest_val   := arf_rd_data4;  -- ARF port 4 = dec0.dest_reg
+          rs0.old_dest_val   := arf_rd_data4;
           rs0.old_dest_ready := '1';
         else
-          rs0.old_dest_tag   := reg_rat(to_integer(unsigned(dec0.dest_reg))).rob_tag;
-          rs0.old_dest_ready := '0';
+          opr_tag := reg_rat(to_integer(unsigned(dec0.dest_reg))).rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs0.old_dest_val   := rob_entries(to_integer(unsigned(opr_tag))).result;
+            rs0.old_dest_ready := '1';
+          else
+            rs0.old_dest_tag   := opr_tag;
+            rs0.old_dest_ready := '0';
+          end if;
         end if;
       else
         rs0.old_dest_val   := x"0000";  -- don't care for non-predicated
@@ -392,8 +422,14 @@ begin
           rs1.opr1 := arf_rd_data2;
           rs1.v1   := '1';
         else
-          rs1.opr1 := x"000" & rat_after_i1(to_integer(unsigned(dec1.src1_reg))).rob_tag;
-          rs1.v1   := '0';
+          opr_tag := rat_after_i1(to_integer(unsigned(dec1.src1_reg))).rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs1.opr1 := rob_entries(to_integer(unsigned(opr_tag))).result;
+            rs1.v1   := '1';
+          else
+            rs1.opr1 := x"000" & opr_tag;
+            rs1.v1   := '0';
+          end if;
         end if;
       else
         rs1.opr1 := x"0000";
@@ -409,8 +445,14 @@ begin
           rs1.opr2 := arf_rd_data3;
           rs1.v2   := '1';
         else
-          rs1.opr2 := x"000" & rat_after_i1(to_integer(unsigned(dec1.src2_reg))).rob_tag;
-          rs1.v2   := '0';
+          opr_tag := rat_after_i1(to_integer(unsigned(dec1.src2_reg))).rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs1.opr2 := rob_entries(to_integer(unsigned(opr_tag))).result;
+            rs1.v2   := '1';
+          else
+            rs1.opr2 := x"000" & opr_tag;
+            rs1.v2   := '0';
+          end if;
         end if;
       else
         rs1.opr2 := rs1.imm;
@@ -427,8 +469,14 @@ begin
           rs1.c_val   := c_arch;
           rs1.c_ready := '1';
         else
-          rs1.c_tag   := fc_after_i1.rob_tag;
-          rs1.c_ready := '0';
+          opr_tag := fc_after_i1.rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs1.c_val   := rob_entries(to_integer(unsigned(opr_tag))).c_val;
+            rs1.c_ready := '1';
+          else
+            rs1.c_tag   := opr_tag;
+            rs1.c_ready := '0';
+          end if;
         end if;
       else
         rs1.c_ready := '1';
@@ -443,8 +491,14 @@ begin
           rs1.z_val   := z_arch;
           rs1.z_ready := '1';
         else
-          rs1.z_tag   := fz_after_i1.rob_tag;
-          rs1.z_ready := '0';
+          opr_tag := fz_after_i1.rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs1.z_val   := rob_entries(to_integer(unsigned(opr_tag))).z_val;
+            rs1.z_ready := '1';
+          else
+            rs1.z_tag   := opr_tag;
+            rs1.z_ready := '0';
+          end if;
         end if;
       else
         rs1.z_ready := '1';
@@ -456,11 +510,17 @@ begin
       -- Old dest value for I1 (uses rat_after_i1 to account for I0's RAT update)
       if dec1.is_predicated = '1' and dec1.has_dest = '1' then
         if rat_after_i1(to_integer(unsigned(dec1.dest_reg))).valid = '0' then
-          rs1.old_dest_val   := arf_rd_data5;  -- ARF port 5 = dec1.dest_reg
+          rs1.old_dest_val   := arf_rd_data5;
           rs1.old_dest_ready := '1';
         else
-          rs1.old_dest_tag   := rat_after_i1(to_integer(unsigned(dec1.dest_reg))).rob_tag;
-          rs1.old_dest_ready := '0';
+          opr_tag := rat_after_i1(to_integer(unsigned(dec1.dest_reg))).rob_tag;
+          if rob_entries(to_integer(unsigned(opr_tag))).done = '1' then
+            rs1.old_dest_val   := rob_entries(to_integer(unsigned(opr_tag))).result;
+            rs1.old_dest_ready := '1';
+          else
+            rs1.old_dest_tag   := opr_tag;
+            rs1.old_dest_ready := '0';
+          end if;
         end if;
       else
         rs1.old_dest_val   := x"0000";

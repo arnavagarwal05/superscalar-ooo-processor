@@ -225,12 +225,114 @@ begin
         updated(free0_idx)     := disp_entry0;
         updated(free0_idx).age := age_counter;
         age_counter <= age_counter + 1;
+        -- Snoop current CDB for the newly allocated entry
+        if cdb0.valid = '1' then
+          if updated(free0_idx).v1 = '0' and updated(free0_idx).opr1(3 downto 0) = cdb0.rob_tag then
+            updated(free0_idx).opr1 := cdb0.result;
+            updated(free0_idx).v1   := '1';
+          end if;
+          if updated(free0_idx).v2 = '0' and updated(free0_idx).opr2(3 downto 0) = cdb0.rob_tag then
+            updated(free0_idx).opr2 := cdb0.result;
+            updated(free0_idx).v2   := '1';
+          end if;
+          if updated(free0_idx).needs_c = '1' and updated(free0_idx).c_ready = '0'
+             and updated(free0_idx).c_tag = cdb0.rob_tag and cdb0.writes_c = '1' then
+            updated(free0_idx).c_val   := cdb0.c_val;
+            updated(free0_idx).c_ready := '1';
+          end if;
+          if updated(free0_idx).needs_z = '1' and updated(free0_idx).z_ready = '0'
+             and updated(free0_idx).z_tag = cdb0.rob_tag and cdb0.writes_z = '1' then
+            updated(free0_idx).z_val   := cdb0.z_val;
+            updated(free0_idx).z_ready := '1';
+          end if;
+          if updated(free0_idx).is_predicated = '1' and updated(free0_idx).old_dest_ready = '0'
+             and updated(free0_idx).old_dest_tag = cdb0.rob_tag then
+            updated(free0_idx).old_dest_val   := cdb0.result;
+            updated(free0_idx).old_dest_ready := '1';
+          end if;
+        end if;
+        if cdb1.valid = '1' then
+          if updated(free0_idx).v1 = '0' and updated(free0_idx).opr1(3 downto 0) = cdb1.rob_tag then
+            updated(free0_idx).opr1 := cdb1.result;
+            updated(free0_idx).v1   := '1';
+          end if;
+          if updated(free0_idx).v2 = '0' and updated(free0_idx).opr2(3 downto 0) = cdb1.rob_tag then
+            updated(free0_idx).opr2 := cdb1.result;
+            updated(free0_idx).v2   := '1';
+          end if;
+          if updated(free0_idx).needs_c = '1' and updated(free0_idx).c_ready = '0'
+             and updated(free0_idx).c_tag = cdb1.rob_tag and cdb1.writes_c = '1' then
+            updated(free0_idx).c_val   := cdb1.c_val;
+            updated(free0_idx).c_ready := '1';
+          end if;
+          if updated(free0_idx).needs_z = '1' and updated(free0_idx).z_ready = '0'
+             and updated(free0_idx).z_tag = cdb1.rob_tag and cdb1.writes_z = '1' then
+            updated(free0_idx).z_val   := cdb1.z_val;
+            updated(free0_idx).z_ready := '1';
+          end if;
+          if updated(free0_idx).is_predicated = '1' and updated(free0_idx).old_dest_ready = '0'
+             and updated(free0_idx).old_dest_tag = cdb1.rob_tag then
+            updated(free0_idx).old_dest_val   := cdb1.result;
+            updated(free0_idx).old_dest_ready := '1';
+          end if;
+        end if;
       end if;
 
       if disp_en1 = '1' and free1_found then
         updated(free1_idx)     := disp_entry1;
         updated(free1_idx).age := age_counter + 1;
         age_counter <= age_counter + 2;
+        -- Snoop current CDB for the newly allocated entry
+        if cdb0.valid = '1' then
+          if updated(free1_idx).v1 = '0' and updated(free1_idx).opr1(3 downto 0) = cdb0.rob_tag then
+            updated(free1_idx).opr1 := cdb0.result;
+            updated(free1_idx).v1   := '1';
+          end if;
+          if updated(free1_idx).v2 = '0' and updated(free1_idx).opr2(3 downto 0) = cdb0.rob_tag then
+            updated(free1_idx).opr2 := cdb0.result;
+            updated(free1_idx).v2   := '1';
+          end if;
+          if updated(free1_idx).needs_c = '1' and updated(free1_idx).c_ready = '0'
+             and updated(free1_idx).c_tag = cdb0.rob_tag and cdb0.writes_c = '1' then
+            updated(free1_idx).c_val   := cdb0.c_val;
+            updated(free1_idx).c_ready := '1';
+          end if;
+          if updated(free1_idx).needs_z = '1' and updated(free1_idx).z_ready = '0'
+             and updated(free1_idx).z_tag = cdb0.rob_tag and cdb0.writes_z = '1' then
+            updated(free1_idx).z_val   := cdb0.z_val;
+            updated(free1_idx).z_ready := '1';
+          end if;
+          if updated(free1_idx).is_predicated = '1' and updated(free1_idx).old_dest_ready = '0'
+             and updated(free1_idx).old_dest_tag = cdb0.rob_tag then
+            updated(free1_idx).old_dest_val   := cdb0.result;
+            updated(free1_idx).old_dest_ready := '1';
+          end if;
+        end if;
+        if cdb1.valid = '1' then
+          if updated(free1_idx).v1 = '0' and updated(free1_idx).opr1(3 downto 0) = cdb1.rob_tag then
+            updated(free1_idx).opr1 := cdb1.result;
+            updated(free1_idx).v1   := '1';
+          end if;
+          if updated(free1_idx).v2 = '0' and updated(free1_idx).opr2(3 downto 0) = cdb1.rob_tag then
+            updated(free1_idx).opr2 := cdb1.result;
+            updated(free1_idx).v2   := '1';
+          end if;
+          if updated(free1_idx).needs_c = '1' and updated(free1_idx).c_ready = '0'
+             and updated(free1_idx).c_tag = cdb1.rob_tag and cdb1.writes_c = '1' then
+            updated(free1_idx).c_val   := cdb1.c_val;
+            updated(free1_idx).c_ready := '1';
+          end if;
+          if updated(free1_idx).needs_z = '1' and updated(free1_idx).z_ready = '0'
+             and updated(free1_idx).z_tag = cdb1.rob_tag and cdb1.writes_z = '1' then
+            updated(free1_idx).z_val   := cdb1.z_val;
+            updated(free1_idx).z_ready := '1';
+          end if;
+          if updated(free1_idx).is_predicated = '1' and updated(free1_idx).old_dest_ready = '0'
+             and updated(free1_idx).old_dest_tag = cdb1.rob_tag then
+            updated(free1_idx).old_dest_val   := cdb1.result;
+            updated(free1_idx).old_dest_ready := '1';
+          end if;
+        end if;
       end if;
 
       -- Write variable back to signal once — single source of truth

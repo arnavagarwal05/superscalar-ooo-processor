@@ -45,6 +45,9 @@ entity rob is
     rd_c1        : out std_logic;
     rd_z1        : out std_logic;
 
+    -- Full entries array (for dispatch operand resolution)
+    entries_out : out rob_array_t;
+
     -- Status
     head_ptr : out std_logic_vector(3 downto 0);
     tail_ptr : out std_logic_vector(3 downto 0);
@@ -71,6 +74,9 @@ begin
   head_ptr <= std_logic_vector(head);
   tail_ptr <= std_logic_vector(tail);
   num_free <= to_unsigned(ROB_SIZE, 5) - count;
+
+  -- Expose full entries array for dispatch operand resolution
+  entries_out <= entries;
 
   -- Value read ports: dispatch reads ROB to check if operand is ready
   rd_val0  <= entries(to_integer(unsigned(rd_tag0))).result;

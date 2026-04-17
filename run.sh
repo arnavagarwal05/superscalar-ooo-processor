@@ -17,4 +17,4 @@ ghdl -a --std=08 retire_unit.vhd
 ghdl -a --std=08 superscalar_top.vhd
 ghdl -a --std=08 tb_superscalar.vhd
 ghdl -e --std=08 tb_superscalar
-ghdl -r --std=08 tb_superscalar --stop-time=2000ns
+ghdl -r --std=08 tb_superscalar --stop-time=20us

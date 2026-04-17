@@ -89,6 +89,7 @@ architecture rtl of superscalar_top is
   signal rob_rd_done0, rob_rd_done1     : std_logic;
   signal rob_rd_c0, rob_rd_c1           : std_logic;
   signal rob_rd_z0, rob_rd_z1           : std_logic;
+  signal rob_entries                    : rob_array_t;
 
   -- RS
   signal rs_disp_en0, rs_disp_en1       : std_logic;
@@ -188,6 +189,7 @@ begin
       rob_alloc_tag0, rob_alloc_tag1, rob_num_free,
       rob_rd_tag0, rob_rd_val0, rob_rd_done0, rob_rd_c0, rob_rd_z0,
       rob_rd_tag1, rob_rd_val1, rob_rd_done1, rob_rd_c1, rob_rd_z1,
+      rob_entries,
       arf_rd_addr0, arf_rd_data0,
       arf_rd_addr1, arf_rd_data1,
       arf_rd_addr2, arf_rd_data2,
@@ -253,6 +255,7 @@ begin
       rob_retire0, rob_retire1,
       rob_rd_tag0, rob_rd_val0, rob_rd_done0, rob_rd_c0, rob_rd_z0,
       rob_rd_tag1, rob_rd_val1, rob_rd_done1, rob_rd_c1, rob_rd_z1,
+      rob_entries,
       rob_head_ptr, rob_tail_ptr, rob_num_free);
 
   u_retire : entity work.retire_unit

@@ -1,48 +1,48 @@
 v 4
-file . "superscalar_top.vhd" "4ba4a509414dc8eaf9f6e6bfc4852ab39ac23673" "20260416193607.012":
-  entity superscalar_top at 1( 0) + 0 on 183;
-  architecture rtl of superscalar_top at 28( 871) + 0 on 184;
-file . "store_buffer.vhd" "ed64dfe6fb1539a54ee3cd6733522c86afc387ee" "20260416193606.853":
-  entity store_buffer at 1( 0) + 0 on 179;
-  architecture rtl of store_buffer at 43( 1457) + 0 on 180;
-file . "execute_alu.vhd" "53019a5cd7649986de08bb86e48a10eb02cd25dc" "20260416193606.521":
-  entity execute_alu at 1( 0) + 0 on 175;
-  architecture rtl of execute_alu at 39( 1497) + 0 on 176;
-file . "rename_dispatch.vhd" "86fc0513d98aeb82823a8a33bd35b96a53972ed1" "20260416193606.031":
-  entity rename_dispatch at 1( 0) + 0 on 171;
-  architecture rtl of rename_dispatch at 90( 3270) + 0 on 172;
-file . "decoder.vhd" "b152fd98b714423826ad3a995571c87e6b19be4d" "20260416193605.938":
-  entity decoder at 1( 0) + 0 on 167;
-  architecture rtl of decoder at 19( 481) + 0 on 168;
-file . "branch_predictor.vhd" "24beb4c1737feac93bd8910e070b0aaae9dfa908" "20260416193605.802":
-  entity branch_predictor at 1( 0) + 0 on 163;
-  architecture rtl of branch_predictor at 30( 913) + 0 on 164;
-file . "memories.vhd" "8f72d27f01b687e62c7cd8d65b2836e865157203" "20260416193605.686":
-  entity instr_mem at 1( 0) + 0 on 157;
-  architecture rtl of instr_mem at 24( 670) + 0 on 158;
-  entity data_mem at 50( 1671) + 0 on 159;
-  architecture rtl of data_mem at 80( 2471) + 0 on 160;
-file . "pkg.vhd" "d08e0fe6aee3cab3ecf725dd3be9567fd09cde13" "20260416193605.559":
-  package pkg at 1( 0) + 0 on 155 body;
-  package body pkg at 256( 11050) + 0 on 156;
-file . "arf.vhd" "d068415e80e3a0260668ee02e60492e46a174591" "20260416193605.743":
-  entity arf at 1( 0) + 0 on 161;
-  architecture rtl of arf at 52( 1734) + 0 on 162;
-file . "fetch_unit.vhd" "bd32a7c702abbc2c82c4f9e61110f439baa099d0" "20260416193605.840":
-  entity fetch_unit at 1( 0) + 0 on 165;
-  architecture rtl of fetch_unit at 47( 1545) + 0 on 166;
-file . "intra_dep_checker.vhd" "82f6baf1cce3d998d53206f75c98085db6b67e96" "20260416193605.998":
-  entity intra_dep_checker at 1( 0) + 0 on 169;
-  architecture rtl of intra_dep_checker at 22( 585) + 0 on 170;
-file . "reservation_station.vhd" "9502223f5f19f18d52e34cf842be864295c0e9c5" "20260416193606.275":
-  entity reservation_station at 1( 0) + 0 on 173;
-  architecture rtl of reservation_station at 43( 1340) + 0 on 174;
-file . "rob.vhd" "bc97d0b41a99b72a3096bd02afbb513fe40149ae" "20260416193606.639":
-  entity rob at 1( 0) + 0 on 177;
-  architecture rtl of rob at 55( 1735) + 0 on 178;
-file . "retire_unit.vhd" "e6188ccc9e874f968108563fb52a98f433d69610" "20260416193606.937":
-  entity retire_unit at 1( 0) + 0 on 181;
-  architecture rtl of retire_unit at 60( 1735) + 0 on 182;
-file . "tb_superscalar.vhd" "bd79cbdfbcdc1ccf9ab38e3c96ff46fdf66f4b8a" "20260416193607.459":
-  entity tb_superscalar at 1( 0) + 0 on 185;
-  architecture sim of tb_superscalar at 38( 1486) + 0 on 186;
+file . "tb_superscalar.vhd" "8b35a6d37960bcacf3cc3e439edfc4b3dbbc61f0" "20260417183927.349":
+  entity tb_superscalar at 1( 0) + 0 on 281;
+  architecture sim of tb_superscalar at 29( 1107) + 0 on 282;
+file . "retire_unit.vhd" "e6188ccc9e874f968108563fb52a98f433d69610" "20260417183926.822":
+  entity retire_unit at 1( 0) + 0 on 277;
+  architecture rtl of retire_unit at 60( 1735) + 0 on 278;
+file . "rob.vhd" "e94f35b69c0435c304b11e6ee09b3d93e2267ed2" "20260417183926.523":
+  entity rob at 1( 0) + 0 on 273;
+  architecture rtl of rob at 58( 1831) + 0 on 274;
+file . "reservation_station.vhd" "9eb0d10198782dd9cb663d61ed02812272dd28e6" "20260417183926.150":
+  entity reservation_station at 1( 0) + 0 on 269;
+  architecture rtl of reservation_station at 43( 1340) + 0 on 270;
+file . "intra_dep_checker.vhd" "82f6baf1cce3d998d53206f75c98085db6b67e96" "20260417183925.868":
+  entity intra_dep_checker at 1( 0) + 0 on 265;
+  architecture rtl of intra_dep_checker at 22( 585) + 0 on 266;
+file . "fetch_unit.vhd" "bd32a7c702abbc2c82c4f9e61110f439baa099d0" "20260417183925.709":
+  entity fetch_unit at 1( 0) + 0 on 261;
+  architecture rtl of fetch_unit at 47( 1545) + 0 on 262;
+file . "arf.vhd" "d068415e80e3a0260668ee02e60492e46a174591" "20260417183925.616":
+  entity arf at 1( 0) + 0 on 257;
+  architecture rtl of arf at 52( 1734) + 0 on 258;
+file . "pkg.vhd" "d08e0fe6aee3cab3ecf725dd3be9567fd09cde13" "20260417183925.437":
+  package pkg at 1( 0) + 0 on 251 body;
+  package body pkg at 256( 11050) + 0 on 252;
+file . "memories.vhd" "8f72d27f01b687e62c7cd8d65b2836e865157203" "20260417183925.564":
+  entity instr_mem at 1( 0) + 0 on 253;
+  architecture rtl of instr_mem at 24( 670) + 0 on 254;
+  entity data_mem at 50( 1671) + 0 on 255;
+  architecture rtl of data_mem at 80( 2471) + 0 on 256;
+file . "branch_predictor.vhd" "24beb4c1737feac93bd8910e070b0aaae9dfa908" "20260417183925.673":
+  entity branch_predictor at 1( 0) + 0 on 259;
+  architecture rtl of branch_predictor at 30( 913) + 0 on 260;
+file . "decoder.vhd" "b152fd98b714423826ad3a995571c87e6b19be4d" "20260417183925.808":
+  entity decoder at 1( 0) + 0 on 263;
+  architecture rtl of decoder at 19( 481) + 0 on 264;
+file . "rename_dispatch.vhd" "562deb809d7476c722c6e838a4b284c5f08c9101" "20260417183925.899":
+  entity rename_dispatch at 1( 0) + 0 on 267;
+  architecture rtl of rename_dispatch at 93( 3376) + 0 on 268;
+file . "execute_alu.vhd" "53019a5cd7649986de08bb86e48a10eb02cd25dc" "20260417183926.410":
+  entity execute_alu at 1( 0) + 0 on 271;
+  architecture rtl of execute_alu at 39( 1497) + 0 on 272;
+file . "store_buffer.vhd" "ed64dfe6fb1539a54ee3cd6733522c86afc387ee" "20260417183926.737":
+  entity store_buffer at 1( 0) + 0 on 275;
+  architecture rtl of store_buffer at 43( 1457) + 0 on 276;
+file . "superscalar_top.vhd" "e9f239422b63adfda4e56086c5c2c51b10e8fad6" "20260417183926.892":
+  entity superscalar_top at 1( 0) + 0 on 279;
+  architecture rtl of superscalar_top at 28( 871) + 0 on 280;
