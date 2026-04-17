@@ -17,7 +17,11 @@ entity superscalar_top is
     -- Instruction memory write port (for testbench initialization)
     imem_wr_en   : in std_logic;
     imem_wr_addr : in std_logic_vector(15 downto 0);
-    imem_wr_data : in std_logic_vector(15 downto 0)
+    imem_wr_data : in std_logic_vector(15 downto 0);
+    -- Data memory write port (for testbench initialization, active during reset only)
+    dmem_wr_en   : in std_logic;
+    dmem_wr_addr : in std_logic_vector(15 downto 0);
+    dmem_wr_data : in std_logic_vector(15 downto 0)
   );
 end entity;
 
@@ -61,8 +65,10 @@ architecture rtl of superscalar_top is
   -- ARF
   signal arf_rd_addr0, arf_rd_addr1 : std_logic_vector(2 downto 0);
   signal arf_rd_addr2, arf_rd_addr3 : std_logic_vector(2 downto 0);
+  signal arf_rd_addr4, arf_rd_addr5 : std_logic_vector(2 downto 0);
   signal arf_rd_data0, arf_rd_data1 : std_logic_vector(15 downto 0);
   signal arf_rd_data2, arf_rd_data3 : std_logic_vector(15 downto 0);
+  signal arf_rd_data4, arf_rd_data5 : std_logic_vector(15 downto 0);
   signal arf_wr_en0, arf_wr_en1     : std_logic;
   signal arf_wr_addr0, arf_wr_addr1 : std_logic_vector(2 downto 0);
   signal arf_wr_data0, arf_wr_data1 : std_logic_vector(15 downto 0);
@@ -166,6 +172,8 @@ begin
       arf_rd_addr1, arf_rd_data1,
       arf_rd_addr2, arf_rd_data2,
       arf_rd_addr3, arf_rd_data3,
+      arf_rd_addr4, arf_rd_data4,
+      arf_rd_addr5, arf_rd_data5,
       arf_wr_en0, arf_wr_addr0, arf_wr_data0,
       arf_wr_en1, arf_wr_addr1, arf_wr_data1,
       c_arch, z_arch,
@@ -184,6 +192,8 @@ begin
       arf_rd_addr1, arf_rd_data1,
       arf_rd_addr2, arf_rd_data2,
       arf_rd_addr3, arf_rd_data3,
+      arf_rd_addr4, arf_rd_data4,
+      arf_rd_addr5, arf_rd_data5,
       c_arch, z_arch,
       rs_num_free,
       rs_disp_en0, rs_disp_entry0,
@@ -213,8 +223,8 @@ begin
       rs_issue0_entry.is_predicated,
       rs_issue0_entry.is_store, rs_issue0_entry.is_load,
       rs_issue0_entry.is_branch, rs_issue0_entry.is_jump,
-      x"0000",  -- old_dest_val (TODO: pass through from ROB)
-      '0',      -- predicted_taken (TODO: pass through from ROB)
+      rs_issue0_entry.old_dest_val,
+      rs_issue0_entry.predicted_taken,
       cdb0_pre);
 
   -- Execute pipe 1
@@ -229,8 +239,8 @@ begin
       rs_issue1_entry.is_predicated,
       rs_issue1_entry.is_store, rs_issue1_entry.is_load,
       rs_issue1_entry.is_branch, rs_issue1_entry.is_jump,
-      x"0000",  -- old_dest_val
-      '0',      -- predicted_taken
+      rs_issue1_entry.old_dest_val,
+      rs_issue1_entry.predicted_taken,
       cdb1_pre);
 
   u_rob : entity work.rob
@@ -272,10 +282,11 @@ begin
       dmem_a_addr, dmem_a_din, dmem_a_dout, dmem_a_wr, dmem_a_rd,
       dmem_b_addr, dmem_b_din, dmem_b_dout, dmem_b_wr, dmem_b_rd);
 
-  -- Store buffer drain -> data memory port A (writes only)
-  dmem_a_addr <= sb_drain_addr;
-  dmem_a_din  <= sb_drain_data;
-  dmem_a_wr   <= sb_drain_valid;
+  -- Data memory port A: testbench init takes priority (only active during reset),
+  -- otherwise used by store buffer drain
+  dmem_a_addr <= dmem_wr_addr  when dmem_wr_en = '1' else sb_drain_addr;
+  dmem_a_din  <= dmem_wr_data  when dmem_wr_en = '1' else sb_drain_data;
+  dmem_a_wr   <= dmem_wr_en    when dmem_wr_en = '1' else sb_drain_valid;
   dmem_a_rd   <= '0';
   dmem_b_din  <= (others => '0');  -- port B is read-only (loads)
   dmem_b_wr   <= '0';

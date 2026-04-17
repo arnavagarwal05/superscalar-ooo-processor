@@ -110,6 +110,12 @@ begin
               updated(i).z_val   := cdb0.z_val;
               updated(i).z_ready := '1';
             end if;
+            -- Snoop for old_dest_val (predicated NOP pass-through)
+            if updated(i).is_predicated = '1' and updated(i).old_dest_ready = '0'
+               and updated(i).old_dest_tag = cdb0.rob_tag then
+              updated(i).old_dest_val   := cdb0.result;
+              updated(i).old_dest_ready := '1';
+            end if;
           end if;
 
           -- Snoop CDB bus 1
@@ -131,6 +137,11 @@ begin
                and updated(i).z_tag = cdb1.rob_tag and cdb1.writes_z = '1' then
               updated(i).z_val   := cdb1.z_val;
               updated(i).z_ready := '1';
+            end if;
+            if updated(i).is_predicated = '1' and updated(i).old_dest_ready = '0'
+               and updated(i).old_dest_tag = cdb1.rob_tag then
+              updated(i).old_dest_val   := cdb1.result;
+              updated(i).old_dest_ready := '1';
             end if;
           end if;
 
@@ -154,7 +165,8 @@ begin
         if e.busy = '1'
            and e.v1 = '1' and e.v2 = '1'
            and (e.needs_c = '0' or e.c_ready = '1')
-           and (e.needs_z = '0' or e.z_ready = '1') then
+           and (e.needs_z = '0' or e.z_ready = '1')
+           and (e.is_predicated = '0' or e.old_dest_ready = '1') then
 
           if not found_first or e.age < oldest_age then
             if found_first then

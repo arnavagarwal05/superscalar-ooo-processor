@@ -49,7 +49,7 @@ entity rename_dispatch is
     rob_rd_c1      : in  std_logic;
     rob_rd_z1      : in  std_logic;
 
-    -- ARF read ports (4: 2 src regs x 2 instructions)
+    -- ARF read ports (6: 2 src regs x 2 instructions + 1 dest reg x 2 instructions)
     arf_rd_addr0 : out std_logic_vector(2 downto 0);
     arf_rd_data0 : in  std_logic_vector(15 downto 0);
     arf_rd_addr1 : out std_logic_vector(2 downto 0);
@@ -58,6 +58,11 @@ entity rename_dispatch is
     arf_rd_data2 : in  std_logic_vector(15 downto 0);
     arf_rd_addr3 : out std_logic_vector(2 downto 0);
     arf_rd_data3 : in  std_logic_vector(15 downto 0);
+    -- ports 4/5: dest_reg old-value lookup for predicated NOP pass-through
+    arf_rd_addr4 : out std_logic_vector(2 downto 0);
+    arf_rd_data4 : in  std_logic_vector(15 downto 0);
+    arf_rd_addr5 : out std_logic_vector(2 downto 0);
+    arf_rd_data5 : in  std_logic_vector(15 downto 0);
     -- Architectural flags
     c_arch : in std_logic;
     z_arch : in std_logic;
@@ -92,11 +97,14 @@ architecture rtl of rename_dispatch is
 begin
 
   -- ARF read address connections
-  -- I1 src1, I1 src2, I2 src1, I2 src2
+  -- ports 0/1: I0 src1, src2 ; ports 2/3: I1 src1, src2
+  -- ports 4/5: I0 dest_reg, I1 dest_reg (old-value lookup for predicated instrs)
   arf_rd_addr0 <= dec0.src1_reg;
   arf_rd_addr1 <= dec0.src2_reg;
   arf_rd_addr2 <= dec1.src1_reg;
   arf_rd_addr3 <= dec1.src2_reg;
+  arf_rd_addr4 <= dec0.dest_reg;
+  arf_rd_addr5 <= dec1.dest_reg;
 
   -----------------------------------------------------------------------
   -- Main dispatch logic (combinational outputs + clocked RAT update)
@@ -156,7 +164,9 @@ begin
              needs_z => '0', z_val => '0', z_tag => "0000", z_ready => '0',
              rob_tag => "0000", dest_reg => "000", pc => x"0000", imm => x"0000",
              is_predicated => '0', is_store => '0', is_load => '0',
-             is_branch => '0', is_jump => '0', age => x"0");
+             is_branch => '0', is_jump => '0', age => x"0",
+             predicted_taken => '0', old_dest_val => x"0000",
+             old_dest_tag => "0000", old_dest_ready => '1');
     rs1  := rs0;
     rob0 := ROB_ENTRY_EMPTY;
     rob1 := ROB_ENTRY_EMPTY;
@@ -274,6 +284,24 @@ begin
         end if;
       else
         rs0.z_ready := '1';
+      end if;
+
+      -- Predicted taken (for misprediction detection in execute)
+      rs0.predicted_taken := pred_taken0;
+
+      -- Old dest value (for predicated NOP pass-through)
+      -- Only meaningful when is_predicated=1; RS snoops CDB if not yet available
+      if dec0.is_predicated = '1' and dec0.has_dest = '1' then
+        if reg_rat(to_integer(unsigned(dec0.dest_reg))).valid = '0' then
+          rs0.old_dest_val   := arf_rd_data4;  -- ARF port 4 = dec0.dest_reg
+          rs0.old_dest_ready := '1';
+        else
+          rs0.old_dest_tag   := reg_rat(to_integer(unsigned(dec0.dest_reg))).rob_tag;
+          rs0.old_dest_ready := '0';
+        end if;
+      else
+        rs0.old_dest_val   := x"0000";  -- don't care for non-predicated
+        rs0.old_dest_ready := '1';
       end if;
 
       -- Construct ROB entry
@@ -420,6 +448,23 @@ begin
         end if;
       else
         rs1.z_ready := '1';
+      end if;
+
+      -- Predicted taken
+      rs1.predicted_taken := pred_taken1;
+
+      -- Old dest value for I1 (uses rat_after_i1 to account for I0's RAT update)
+      if dec1.is_predicated = '1' and dec1.has_dest = '1' then
+        if rat_after_i1(to_integer(unsigned(dec1.dest_reg))).valid = '0' then
+          rs1.old_dest_val   := arf_rd_data5;  -- ARF port 5 = dec1.dest_reg
+          rs1.old_dest_ready := '1';
+        else
+          rs1.old_dest_tag   := rat_after_i1(to_integer(unsigned(dec1.dest_reg))).rob_tag;
+          rs1.old_dest_ready := '0';
+        end if;
+      else
+        rs1.old_dest_val   := x"0000";
+        rs1.old_dest_ready := '1';
       end if;
 
       -- ROB entry for I2

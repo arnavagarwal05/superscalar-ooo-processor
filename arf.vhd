@@ -4,16 +4,16 @@ use ieee.numeric_std.all;
 use work.pkg.all;
 
 -- Architectural Register File (ARF)
--- 8 × 16-bit registers, R0 always holds PC
--- 4 async read ports (for rename/dispatch — 2 src regs × 2 instructions)
--- 2 sync write ports (for retire — up to 2 instructions retiring per cycle)
+-- 8 x 16-bit registers, R0 always holds PC
+-- 6 async read ports (4 for src regs, 2 for dest reg old-value lookup)
+-- 2 sync write ports (for retire -- up to 2 instructions retiring per cycle)
 -- Architectural flag register: C and Z
 
 entity arf is
   port(
     clk, reset : in std_logic;
 
-    -- 4 async read ports
+    -- 6 async read ports
     rd_addr0 : in  std_logic_vector(2 downto 0);
     rd_data0 : out std_logic_vector(15 downto 0);
     rd_addr1 : in  std_logic_vector(2 downto 0);
@@ -22,6 +22,11 @@ entity arf is
     rd_data2 : out std_logic_vector(15 downto 0);
     rd_addr3 : in  std_logic_vector(2 downto 0);
     rd_data3 : out std_logic_vector(15 downto 0);
+    -- ports 4 and 5: dest_reg old-value lookup (for predicated NOP pass-through)
+    rd_addr4 : in  std_logic_vector(2 downto 0);
+    rd_data4 : out std_logic_vector(15 downto 0);
+    rd_addr5 : in  std_logic_vector(2 downto 0);
+    rd_data5 : out std_logic_vector(15 downto 0);
 
     -- 2 sync write ports (from retire)
     wr_en0   : in  std_logic;
@@ -55,6 +60,8 @@ begin
   rd_data1 <= regs(to_integer(unsigned(rd_addr1)));
   rd_data2 <= regs(to_integer(unsigned(rd_addr2)));
   rd_data3 <= regs(to_integer(unsigned(rd_addr3)));
+  rd_data4 <= regs(to_integer(unsigned(rd_addr4)));
+  rd_data5 <= regs(to_integer(unsigned(rd_addr5)));
 
   c_arch_out <= c_flag;
   z_arch_out <= z_flag;
