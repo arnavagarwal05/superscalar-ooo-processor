@@ -503,6 +503,39 @@ begin
     chk("LM->R2", 2, x"2222");
 
     --------------------------------------------------------------------------
+    -- T28: Dependency chain — intra-dispatch and inter-dispatch RAW hazards
+    --
+    --   Pre-init: dmem[0x20] = 0xABCD
+    --
+    --   0x00: LLI R1, 5           R1 = 0x0005
+    --   0x02: ADI R2, R1, 3       R2 = 0x0008  [intra-dep: R1 from dec0]
+    --   0x04: ADA R3, R1, R2      R3 = 0x000D  [inter-dep: R1,R2 from prev pair]
+    --   0x06: ADA R4, R3, R3      R4 = 0x001A  [intra-dep: R3 both src from dec0]
+    --   0x08: LLI R5, 0x20        R5 = 0x0020
+    --   0x0A: LW  R6, R5, 0       R6 = 0xABCD  [intra-dep: R5 base from dec0]
+    --   0x0C: ADI R7, R6, 1       R7 = 0xABCE  [inter-dep: R6 from LW]
+    --------------------------------------------------------------------------
+    report "=== T28: Dependency chain ===";
+    setup;
+    wd(16#20#, x"ABCD");           -- dmem[0x20] = 0xABCD
+    wi(16#00#, x"3205");  -- LLI R1, 5
+    wi(16#02#, x"0283");  -- ADI R2, R1, 3        [intra-dep R1->R2]
+    wi(16#04#, x"1298");  -- ADA R3, R1, R2
+    wi(16#06#, x"16E0");  -- ADA R4, R3, R3        [intra-dep R3->R4 both src]
+    wi(16#08#, x"3A20");  -- LLI R5, 0x20
+    wi(16#0A#, x"4D40");  -- LW  R6, R5, 0         [intra-dep R5 base->LW]
+    wi(16#0C#, x"0DC1");  -- ADI R7, R6, 1         [inter-dep R6 from LW]
+    halt_here(16#0E#);
+    go(120);
+    chk("dep R1", 1, x"0005");
+    chk("dep R2", 2, x"0008");
+    chk("dep R3", 3, x"000D");
+    chk("dep R4", 4, x"001A");
+    chk("dep R5", 5, x"0020");
+    chk("dep R6", 6, x"ABCD");
+    chk("dep R7", 7, x"ABCE");
+
+    --------------------------------------------------------------------------
     -- Summary
     --------------------------------------------------------------------------
     report "RESULT: " & integer'image(passed) & " / " & integer'image(total) & " checks passed";
