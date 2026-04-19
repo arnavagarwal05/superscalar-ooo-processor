@@ -29,7 +29,8 @@ entity execute_alu is
     is_branch_in  : in  std_logic;
     is_jump_in    : in  std_logic;
     old_dest_val  : in  std_logic_vector(15 downto 0);  -- for NOP pass-through
-    predicted_taken : in std_logic;  -- branch predictor's prediction
+    predicted_taken  : in std_logic;
+    predicted_target : in std_logic_vector(15 downto 0);
 
     -- Output to CDB
     cdb_out       : out cdb_t
@@ -201,14 +202,20 @@ begin
 
     -------------------------------------------------------------------
     -- Step 3: Determine misprediction
+    -- A misprediction occurs when either:
+    --   (a) Direction wrong: predicted taken but actually not, or vice versa.
+    --   (b) Target wrong: both agree it's taken, but the predicted target
+    --       doesn't match the actual computed target.
+    -- On misprediction the retire unit will flush and redirect fetch.
     -------------------------------------------------------------------
     cdb.branch_taken  := taken;
     cdb.branch_target := target;
-    if is_branch_in = '1' then      -- if the current instr is a branch 
-      if taken /= predicted_taken then    -- if the actual branch outcome differs from the predicted outcome
+    if is_branch_in = '1' then
+      if taken /= predicted_taken then
+        -- Case (a): direction mismatch
         cdb.mispredicted := '1';
-      elsif taken = '1' and target /= pc_in then
-        -- Both predicted taken, but wrong target (shouldn't happen with our scheme)
+      elsif taken = '1' and target /= predicted_target then
+        -- Case (b): both taken, but target differs
         cdb.mispredicted := '1';
       else
         cdb.mispredicted := '0';

@@ -120,8 +120,9 @@ package pkg is
     is_branch     : std_logic;
     is_jump       : std_logic;
     age           : unsigned(3 downto 0);           -- for oldest-first issue if multiple are ready simultaneously
-    -- predicated instruction support
-    predicted_taken : std_logic;                      -- branch predictor's prediction (for misprediction detection)
+    -- branch prediction info (carried to execute for misprediction detection)
+    predicted_taken  : std_logic;
+    predicted_target : std_logic_vector(15 downto 0);
     old_dest_val    : std_logic_vector(15 downto 0);  -- value of dest reg before this instruction (NOP pass-through)
     old_dest_tag    : std_logic_vector(3 downto 0);   -- ROB tag to wait for if old value not yet available
     old_dest_ready  : std_logic;                      -- 1 = old_dest_val is valid, 0 = waiting for old_dest_tag

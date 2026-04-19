@@ -107,6 +107,10 @@ architecture rtl of superscalar_top is
   signal sb_commit_tag0, sb_commit_tag1 : std_logic_vector(3 downto 0);
   signal sb_drain_valid                 : std_logic;
   signal sb_drain_addr, sb_drain_data   : std_logic_vector(15 downto 0);
+  signal sb_fwd_addr                    : std_logic_vector(15 downto 0);
+  signal sb_fwd_en                      : std_logic;
+  signal sb_fwd_hit                     : std_logic;
+  signal sb_fwd_data                    : std_logic_vector(15 downto 0);
   signal sb_num_free                    : unsigned(2 downto 0);
 
   -- Data memory
@@ -202,6 +206,7 @@ begin
       rs_disp_en1, rs_disp_entry1,
       rob_alloc_en0, rob_alloc_data0,
       rob_alloc_en1, rob_alloc_data1,
+      rob_retire0, rob_retire1, rob_head_ptr,
       stall);
 
   u_rs : entity work.reservation_station
@@ -227,6 +232,7 @@ begin
       rs_issue0_entry.is_branch, rs_issue0_entry.is_jump,
       rs_issue0_entry.old_dest_val,
       rs_issue0_entry.predicted_taken,
+      rs_issue0_entry.predicted_target,
       cdb0_pre);
 
   -- Execute pipe 1
@@ -243,6 +249,7 @@ begin
       rs_issue1_entry.is_branch, rs_issue1_entry.is_jump,
       rs_issue1_entry.old_dest_val,
       rs_issue1_entry.predicted_taken,
+      rs_issue1_entry.predicted_target,
       cdb1_pre);
 
   u_rob : entity work.rob
@@ -276,8 +283,8 @@ begin
       sb_commit_en0, sb_commit_tag0,
       sb_commit_en1, sb_commit_tag1,
       sb_drain_valid, sb_drain_addr, sb_drain_data,
-      x"0000", '0',  -- fwd check (TODO: connect to load pipe)
-      open, open,
+      sb_fwd_addr, sb_fwd_en,
+      sb_fwd_hit, sb_fwd_data,
       sb_num_free);
 
   u_dmem : entity work.data_mem
@@ -305,41 +312,92 @@ begin
   process(all)
     variable c0 : cdb_t;
     variable c1 : cdb_t;
+    variable load_data : std_logic_vector(15 downto 0);
   begin
     c0 := cdb0_pre;
     c1 := cdb1_pre;
 
-    -- Default: no load read on port B
+    -- Default: no load read on port B, no SB forward check
     dmem_b_addr <= (others => '0');
     dmem_b_rd   <= '0';
+    sb_fwd_addr <= (others => '0');
+    sb_fwd_en   <= '0';
 
     if cdb0_pre.valid = '1' and cdb0_pre.is_load = '1' then
-      -- Pipe 0 has a load: send address to port B
       dmem_b_addr  <= cdb0_pre.result;
       dmem_b_rd    <= '1';
-      -- Replace result with loaded data; recompute Z
-      c0.result    := dmem_b_dout;
-      if dmem_b_dout = x"0000" then
+      sb_fwd_addr  <= cdb0_pre.result;
+      sb_fwd_en    <= '1';
+      -- Same-cycle forwarding: if pipe 1 is storing to the same address this cycle,
+      -- forward directly (SB won't capture it until next clock edge)
+      if cdb1_pre.valid = '1' and cdb1_pre.is_store = '1'
+         and cdb1_pre.store_addr = cdb0_pre.result then
+        load_data := cdb1_pre.store_data;
+      elsif sb_fwd_hit = '1' then
+        load_data := sb_fwd_data;
+      else
+        load_data := dmem_b_dout;
+      end if;
+      c0.result    := load_data;
+      if load_data = x"0000" then
         c0.z_val := '1';
       else
         c0.z_val := '0';
       end if;
+      -- synthesis translate_off
+      report "LOAD pipe0: addr=0x" & to_hstring(cdb0_pre.result) &
+             " fwd=" & std_logic'image(sb_fwd_hit) &
+             " data=0x" & to_hstring(load_data) &
+             " tag=" & to_hstring(cdb0_pre.rob_tag);
+      -- synthesis translate_on
 
     elsif cdb1_pre.valid = '1' and cdb1_pre.is_load = '1' then
-      -- Pipe 1 has a load and pipe 0 does not: use port B for pipe 1
       dmem_b_addr  <= cdb1_pre.result;
       dmem_b_rd    <= '1';
-      c1.result    := dmem_b_dout;
-      if dmem_b_dout = x"0000" then
+      sb_fwd_addr  <= cdb1_pre.result;
+      sb_fwd_en    <= '1';
+      -- Same-cycle forwarding: if pipe 0 is storing to the same address this cycle,
+      -- forward directly (SB won't capture it until next clock edge)
+      if cdb0_pre.valid = '1' and cdb0_pre.is_store = '1'
+         and cdb0_pre.store_addr = cdb1_pre.result then
+        load_data := cdb0_pre.store_data;
+      elsif sb_fwd_hit = '1' then
+        load_data := sb_fwd_data;
+      else
+        load_data := dmem_b_dout;
+      end if;
+      c1.result    := load_data;
+      if load_data = x"0000" then
         c1.z_val := '1';
       else
         c1.z_val := '0';
       end if;
+      -- synthesis translate_off
+      report "LOAD pipe1: addr=0x" & to_hstring(cdb1_pre.result) &
+             " fwd=" & std_logic'image(sb_fwd_hit) &
+             " data=0x" & to_hstring(load_data) &
+             " tag=" & to_hstring(cdb1_pre.rob_tag);
+      -- synthesis translate_on
     end if;
 
     cdb0 <= c0;
     cdb1 <= c1;
   end process;
+
+  -- synthesis translate_off
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if flush = '1' then
+        report "FLUSH target=0x" & to_hstring(flush_target);
+      end if;
+      if sb_drain_valid = '1' then
+        report "SB_DRAIN addr=0x" & to_hstring(sb_drain_addr) &
+               " data=0x" & to_hstring(sb_drain_data);
+      end if;
+    end if;
+  end process;
+  -- synthesis translate_on
 
   -- Flag outputs
   c_flag <= c_arch;

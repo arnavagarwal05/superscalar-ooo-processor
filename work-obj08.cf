@@ -1,48 +1,51 @@
 v 4
-file . "tb_superscalar.vhd" "8b35a6d37960bcacf3cc3e439edfc4b3dbbc61f0" "20260417183927.349":
-  entity tb_superscalar at 1( 0) + 0 on 281;
-  architecture sim of tb_superscalar at 29( 1107) + 0 on 282;
-file . "retire_unit.vhd" "e6188ccc9e874f968108563fb52a98f433d69610" "20260417183926.822":
-  entity retire_unit at 1( 0) + 0 on 277;
-  architecture rtl of retire_unit at 60( 1735) + 0 on 278;
-file . "rob.vhd" "e94f35b69c0435c304b11e6ee09b3d93e2267ed2" "20260417183926.523":
-  entity rob at 1( 0) + 0 on 273;
-  architecture rtl of rob at 58( 1831) + 0 on 274;
-file . "reservation_station.vhd" "9eb0d10198782dd9cb663d61ed02812272dd28e6" "20260417183926.150":
-  entity reservation_station at 1( 0) + 0 on 269;
-  architecture rtl of reservation_station at 43( 1340) + 0 on 270;
-file . "intra_dep_checker.vhd" "82f6baf1cce3d998d53206f75c98085db6b67e96" "20260417183925.868":
-  entity intra_dep_checker at 1( 0) + 0 on 265;
-  architecture rtl of intra_dep_checker at 22( 585) + 0 on 266;
-file . "fetch_unit.vhd" "bd32a7c702abbc2c82c4f9e61110f439baa099d0" "20260417183925.709":
-  entity fetch_unit at 1( 0) + 0 on 261;
-  architecture rtl of fetch_unit at 47( 1545) + 0 on 262;
-file . "arf.vhd" "d068415e80e3a0260668ee02e60492e46a174591" "20260417183925.616":
-  entity arf at 1( 0) + 0 on 257;
-  architecture rtl of arf at 52( 1734) + 0 on 258;
-file . "pkg.vhd" "d08e0fe6aee3cab3ecf725dd3be9567fd09cde13" "20260417183925.437":
-  package pkg at 1( 0) + 0 on 251 body;
-  package body pkg at 256( 11050) + 0 on 252;
-file . "memories.vhd" "8f72d27f01b687e62c7cd8d65b2836e865157203" "20260417183925.564":
-  entity instr_mem at 1( 0) + 0 on 253;
-  architecture rtl of instr_mem at 24( 670) + 0 on 254;
-  entity data_mem at 50( 1671) + 0 on 255;
-  architecture rtl of data_mem at 80( 2471) + 0 on 256;
-file . "branch_predictor.vhd" "24beb4c1737feac93bd8910e070b0aaae9dfa908" "20260417183925.673":
-  entity branch_predictor at 1( 0) + 0 on 259;
-  architecture rtl of branch_predictor at 30( 913) + 0 on 260;
-file . "decoder.vhd" "b152fd98b714423826ad3a995571c87e6b19be4d" "20260417183925.808":
-  entity decoder at 1( 0) + 0 on 263;
-  architecture rtl of decoder at 19( 481) + 0 on 264;
-file . "rename_dispatch.vhd" "562deb809d7476c722c6e838a4b284c5f08c9101" "20260417183925.899":
-  entity rename_dispatch at 1( 0) + 0 on 267;
-  architecture rtl of rename_dispatch at 93( 3376) + 0 on 268;
-file . "execute_alu.vhd" "53019a5cd7649986de08bb86e48a10eb02cd25dc" "20260417183926.410":
-  entity execute_alu at 1( 0) + 0 on 271;
-  architecture rtl of execute_alu at 39( 1497) + 0 on 272;
-file . "store_buffer.vhd" "ed64dfe6fb1539a54ee3cd6733522c86afc387ee" "20260417183926.737":
-  entity store_buffer at 1( 0) + 0 on 275;
-  architecture rtl of store_buffer at 43( 1457) + 0 on 276;
-file . "superscalar_top.vhd" "e9f239422b63adfda4e56086c5c2c51b10e8fad6" "20260417183926.892":
-  entity superscalar_top at 1( 0) + 0 on 279;
-  architecture rtl of superscalar_top at 28( 871) + 0 on 280;
+file . "superscalar_top.vhd" "ee7fc101636e34b0978760e1a4855ee67a1b99ce" "20260419113016.428":
+  entity superscalar_top at 1( 0) + 0 on 633;
+  architecture rtl of superscalar_top at 28( 871) + 0 on 634;
+file . "store_buffer.vhd" "ed64dfe6fb1539a54ee3cd6733522c86afc387ee" "20260419113016.080":
+  entity store_buffer at 1( 0) + 0 on 627;
+  architecture rtl of store_buffer at 43( 1457) + 0 on 628;
+file . "execute_alu.vhd" "bb2931dfa21dae33b4e470dd499209397c55aafb" "20260419113014.138":
+  entity execute_alu at 1( 0) + 0 on 617;
+  architecture rtl of execute_alu at 40( 1521) + 0 on 618;
+file . "rename_dispatch.vhd" "fef81d4fc21dd29a483f1783a3b697ba2795e1d0" "20260419113015.422":
+  entity rename_dispatch at 1( 0) + 0 on 625;
+  architecture rtl of rename_dispatch at 98( 3530) + 0 on 626;
+file . "decoder.vhd" "b152fd98b714423826ad3a995571c87e6b19be4d" "20260419113013.823":
+  entity decoder at 1( 0) + 0 on 613;
+  architecture rtl of decoder at 19( 481) + 0 on 614;
+file . "branch_predictor.vhd" "24beb4c1737feac93bd8910e070b0aaae9dfa908" "20260419113014.375":
+  entity branch_predictor at 1( 0) + 0 on 619;
+  architecture rtl of branch_predictor at 30( 913) + 0 on 620;
+file . "memories.vhd" "8f72d27f01b687e62c7cd8d65b2836e865157203" "20260419113013.715":
+  entity instr_mem at 1( 0) + 0 on 609;
+  architecture rtl of instr_mem at 24( 670) + 0 on 610;
+  entity data_mem at 50( 1671) + 0 on 611;
+  architecture rtl of data_mem at 80( 2471) + 0 on 612;
+file . "pkg.vhd" "6e2284cdcfa991e666cb1d278d04d88411e204d7" "20260419113013.459":
+  package pkg at 1( 0) + 0 on 605 body;
+  package body pkg at 257( 11062) + 0 on 606;
+file . "arf.vhd" "d068415e80e3a0260668ee02e60492e46a174591" "20260419113013.599":
+  entity arf at 1( 0) + 0 on 607;
+  architecture rtl of arf at 52( 1734) + 0 on 608;
+file . "fetch_unit.vhd" "bd32a7c702abbc2c82c4f9e61110f439baa099d0" "20260419113013.938":
+  entity fetch_unit at 1( 0) + 0 on 615;
+  architecture rtl of fetch_unit at 47( 1545) + 0 on 616;
+file . "intra_dep_checker.vhd" "82f6baf1cce3d998d53206f75c98085db6b67e96" "20260419113016.366":
+  entity intra_dep_checker at 1( 0) + 0 on 631;
+  architecture rtl of intra_dep_checker at 22( 585) + 0 on 632;
+file . "reservation_station.vhd" "9eb0d10198782dd9cb663d61ed02812272dd28e6" "20260419113014.874":
+  entity reservation_station at 1( 0) + 0 on 623;
+  architecture rtl of reservation_station at 43( 1340) + 0 on 624;
+file . "rob.vhd" "e94f35b69c0435c304b11e6ee09b3d93e2267ed2" "20260419113014.442":
+  entity rob at 1( 0) + 0 on 621;
+  architecture rtl of rob at 58( 1831) + 0 on 622;
+file . "retire_unit.vhd" "e6188ccc9e874f968108563fb52a98f433d69610" "20260419113016.239":
+  entity retire_unit at 1( 0) + 0 on 629;
+  architecture rtl of retire_unit at 60( 1735) + 0 on 630;
+file . "tb_superscalar.vhd" "eed3e714482efdd0a9515ed21161ae448a0e59d4" "20260419114358.628":
+  entity tb_superscalar at 1( 0) + 0 on 637;
+  architecture sim of tb_superscalar at 29( 1107) + 0 on 638;
+file . "tb_instr.vhd" "c23afb3ff752042e6a6513d6dab3aaa10a65cec7" "20260419113017.364":
+  entity tb_instr at 1( 0) + 0 on 635;
+  architecture sim of tb_instr at 29( 1108) + 0 on 636;

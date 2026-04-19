@@ -85,6 +85,11 @@ entity rename_dispatch is
     rob_alloc_en1   : out std_logic;
     rob_alloc_data1 : out rob_entry_t;
 
+    -- Retire info (for RAT clearing)
+    retire_en0  : in std_logic;
+    retire_en1  : in std_logic;
+    retire_head : in std_logic_vector(3 downto 0);
+
     -- Stall output (to fetch and decode)
     stall : out std_logic
   );
@@ -168,7 +173,8 @@ begin
              rob_tag => "0000", dest_reg => "000", pc => x"0000", imm => x"0000",
              is_predicated => '0', is_store => '0', is_load => '0',
              is_branch => '0', is_jump => '0', age => x"0",
-             predicted_taken => '0', old_dest_val => x"0000",
+             predicted_taken => '0', predicted_target => x"0000",
+             old_dest_val => x"0000",
              old_dest_tag => "0000", old_dest_ready => '1');
     rs1  := rs0;
     rob0 := ROB_ENTRY_EMPTY;
@@ -311,7 +317,8 @@ begin
       end if;
 
       -- Predicted taken (for misprediction detection in execute)
-      rs0.predicted_taken := pred_taken0;
+      rs0.predicted_taken  := pred_taken0;
+      rs0.predicted_target := pred_target0;
 
       -- Old dest value (for predicated NOP pass-through)
       -- Only meaningful when is_predicated=1; RS snoops CDB if not yet available
@@ -505,7 +512,8 @@ begin
       end if;
 
       -- Predicted taken
-      rs1.predicted_taken := pred_taken1;
+      rs1.predicted_taken  := pred_taken1;
+      rs1.predicted_target := pred_target1;
 
       -- Old dest value for I1 (uses rat_after_i1 to account for I0's RAT update)
       if dec1.is_predicated = '1' and dec1.has_dest = '1' then
@@ -545,18 +553,41 @@ begin
 
     -------------------------------------------------------------------
     -- Drive outputs
+    --
+    -- dec1-only case: when I0 is invalid but I1 is valid, I1 must
+    -- be routed through slot 0 outputs.  The ROB allocates entries
+    -- sequentially using a variable (new_tail): slot 0 goes at
+    -- new_tail, slot 1 goes at new_tail+1.  If we put I1 into slot 1
+    -- with alloc_en0=0, the ROB still allocates at new_tail (not
+    -- new_tail+1), so the tag I1 was given (rob_alloc_tag1 = tail+1)
+    -- won't match where the ROB actually stored it (tail).
+    -- Routing through slot 0 gives I1 the correct tag (tail).
     -------------------------------------------------------------------
     stall <= do_stall;
 
-    rs_disp_en0    <= can_dispatch0;
-    rs_disp_entry0 <= rs0;
-    rs_disp_en1    <= can_dispatch1;
-    rs_disp_entry1 <= rs1;
+    if can_dispatch0 = '0' and can_dispatch1 = '1' then
+      -- Only I1 dispatches: route it through slot 0
+      rs_disp_en0    <= '1';
+      rs_disp_entry0 <= rs1;
+      rs_disp_entry0.rob_tag <= rob_alloc_tag0;  -- correct tag = tail
+      rs_disp_en1    <= '0';
+      rs_disp_entry1 <= rs1;
 
-    rob_alloc_en0   <= can_dispatch0;
-    rob_alloc_data0 <= rob0;
-    rob_alloc_en1   <= can_dispatch1;
-    rob_alloc_data1 <= rob1;
+      rob_alloc_en0   <= '1';
+      rob_alloc_data0 <= rob1;
+      rob_alloc_en1   <= '0';
+      rob_alloc_data1 <= rob1;
+    else
+      rs_disp_en0    <= can_dispatch0;
+      rs_disp_entry0 <= rs0;
+      rs_disp_en1    <= can_dispatch1;
+      rs_disp_entry1 <= rs1;
+
+      rob_alloc_en0   <= can_dispatch0;
+      rob_alloc_data0 <= rob0;
+      rob_alloc_en1   <= can_dispatch1;
+      rob_alloc_data1 <= rob1;
+    end if;
 
     -- ROB read ports: we use these to check if tagged operands are done. so that we can grab the value immediately instead of waiting in the RS. 
     -- The problem is specifically about newly dispatched instructions. Consider this example timeline:
@@ -578,11 +609,35 @@ begin
 
   -----------------------------------------------------------------------
   -- RAT update (clocked)
+  --
+  -- The RAT maps architectural registers to in-flight ROB tags.
+  -- Two things update it each cycle:
+  --
+  --   1. RETIRE CLEARING (first): When an instruction retires, its
+  --      RAT entry is cleared — but ONLY if the RAT still points to
+  --      that instruction's ROB tag.  A later in-flight instruction
+  --      may have already overwritten the RAT with a newer tag; in
+  --      that case we must NOT clear it, or we'd lose the newer
+  --      mapping and future dispatches would read a stale ARF value.
+  --
+  --   2. DISPATCH UPDATE (second): New instructions write their
+  --      dest -> ROB tag mapping.  Because this comes after clearing,
+  --      dispatch always takes priority if both target the same
+  --      register (VHDL last-assignment-wins semantics).
+  --
+  -- Why clearing matters for correctness: without it, RAT entries
+  -- accumulate forever.  This works as long as ROB tags are unique,
+  -- because the ROB done-check resolves them.  But ROB tags wrap
+  -- around (16 entries), so a stale RAT entry pointing to tag X
+  -- could resolve to a DIFFERENT instruction's result once X is
+  -- reused — a silent corruption.  Clearing on retire prevents this.
   -----------------------------------------------------------------------
   process(clk, reset)
+    variable ret_tag  : std_logic_vector(3 downto 0);
+    variable ret_entry: rob_entry_t;
+    variable ret_dest : integer;
   begin
     if reset = '1' or flush = '1' then
-      -- Reset all RAT entries to invalid (read from ARF)
       for i in 0 to NUM_REGS-1 loop
         reg_rat(i) <= RAT_ENTRY_CLEAR;
       end loop;
@@ -591,45 +646,108 @@ begin
 
     elsif rising_edge(clk) then
 
-      -- Update RAT for I1
-      if dec0.valid = '1' and dec0.has_dest = '1' then
-        reg_rat(to_integer(unsigned(dec0.dest_reg))).valid   <= '1';
-        reg_rat(to_integer(unsigned(dec0.dest_reg))).rob_tag <= rob_alloc_tag0;
+      -----------------------------------------------------------------
+      -- Step 1: Clear RAT entries for retiring instructions
+      -- Clear only if the RAT still maps to the retiring tag;
+      -- a later instruction may have already claimed the entry.
+      -----------------------------------------------------------------
+      if retire_en0 = '1' then
+        ret_tag   := retire_head;
+        ret_entry := rob_entries(to_integer(unsigned(ret_tag)));
+        ret_dest  := to_integer(unsigned(ret_entry.dest_reg));
+
+        if ret_entry.has_dest = '1'
+           and reg_rat(ret_dest).valid = '1'
+           and reg_rat(ret_dest).rob_tag = ret_tag then
+          reg_rat(ret_dest).valid <= '0';
+        end if;
+        if ret_entry.writes_c = '1'
+           and flag_c.valid = '1' and flag_c.rob_tag = ret_tag then
+          flag_c.valid <= '0';
+        end if;
+        if ret_entry.writes_z = '1'
+           and flag_z.valid = '1' and flag_z.rob_tag = ret_tag then
+          flag_z.valid <= '0';
+        end if;
       end if;
 
-      -- Update RAT for I2 (overwrites I1's update if same dest — correct, since I2 is later in program order)
-      if dec1.valid = '1' and dec1.has_dest = '1' then
-        reg_rat(to_integer(unsigned(dec1.dest_reg))).valid   <= '1';
-        reg_rat(to_integer(unsigned(dec1.dest_reg))).rob_tag <= rob_alloc_tag1;
+      if retire_en1 = '1' then
+        ret_tag   := std_logic_vector(unsigned(retire_head) + 1);
+        ret_entry := rob_entries(to_integer(unsigned(ret_tag)));
+        ret_dest  := to_integer(unsigned(ret_entry.dest_reg));
+
+        if ret_entry.has_dest = '1'
+           and reg_rat(ret_dest).valid = '1'
+           and reg_rat(ret_dest).rob_tag = ret_tag then
+          reg_rat(ret_dest).valid <= '0';
+        end if;
+        if ret_entry.writes_c = '1'
+           and flag_c.valid = '1' and flag_c.rob_tag = ret_tag then
+          flag_c.valid <= '0';
+        end if;
+        if ret_entry.writes_z = '1'
+           and flag_z.valid = '1' and flag_z.rob_tag = ret_tag then
+          flag_z.valid <= '0';
+        end if;
       end if;
 
-      -- Flag RAT updates
-      if dec0.valid = '1' and dec0.writes_c = '1' then
-        flag_c.valid   <= '1';
-        flag_c.rob_tag <= rob_alloc_tag0;
-      end if;
-      if dec1.valid = '1' and dec1.writes_c = '1' then
-        flag_c.valid   <= '1';
-        flag_c.rob_tag <= rob_alloc_tag1;
-      end if;
+      -----------------------------------------------------------------
+      -- Step 2: Update RAT for newly dispatched instructions
+      -- Comes after clearing so dispatch wins if both target the
+      -- same register (last assignment wins in VHDL).
+      --
+      -- GUARD: only update when not stalled. During a stall the
+      -- decode pipeline register keeps the same instructions, but
+      -- no ROB/RS allocation happens. Updating the RAT without
+      -- allocating would create dangling tag references.
+      --
+      -- dec1-only case: I1 is routed through slot 0, so it gets
+      -- rob_alloc_tag0 (= tail), not rob_alloc_tag1 (= tail+1).
+      -- The RAT must record the same tag the RS entry carries.
+      -----------------------------------------------------------------
+      if stall = '0' then
 
-      if dec0.valid = '1' and dec0.writes_z = '1' then
-        flag_z.valid   <= '1';
-        flag_z.rob_tag <= rob_alloc_tag0;
-      end if;
-      if dec1.valid = '1' and dec1.writes_z = '1' then
-        flag_z.valid   <= '1';
-        flag_z.rob_tag <= rob_alloc_tag1;
-      end if;
+        if dec0.valid = '1' and dec0.has_dest = '1' then
+          reg_rat(to_integer(unsigned(dec0.dest_reg))).valid   <= '1';
+          reg_rat(to_integer(unsigned(dec0.dest_reg))).rob_tag <= rob_alloc_tag0;
+        end if;
 
-      -- TODO: clear RAT entries when ROB entries retire
-      -- (The retire unit sends rat_restore on flush which resets everything.
-      --  For non-flush retires, we could clear individual RAT entries when
-      --  the retiring ROB tag matches the current RAT tag. This is an
-      --  optimization — without it, the RAT just accumulates tags that
-      --  point to completed ROB entries, which resolve correctly via
-      --  the ROB done check. The only issue is ROB entry reuse after
-      --  wrap-around, which we handle by having 16 entries.)
+        if dec1.valid = '1' and dec1.has_dest = '1' then
+          reg_rat(to_integer(unsigned(dec1.dest_reg))).valid   <= '1';
+          if dec0.valid = '0' then
+            reg_rat(to_integer(unsigned(dec1.dest_reg))).rob_tag <= rob_alloc_tag0;
+          else
+            reg_rat(to_integer(unsigned(dec1.dest_reg))).rob_tag <= rob_alloc_tag1;
+          end if;
+        end if;
+
+        if dec0.valid = '1' and dec0.writes_c = '1' then
+          flag_c.valid   <= '1';
+          flag_c.rob_tag <= rob_alloc_tag0;
+        end if;
+        if dec1.valid = '1' and dec1.writes_c = '1' then
+          flag_c.valid   <= '1';
+          if dec0.valid = '0' then
+            flag_c.rob_tag <= rob_alloc_tag0;
+          else
+            flag_c.rob_tag <= rob_alloc_tag1;
+          end if;
+        end if;
+
+        if dec0.valid = '1' and dec0.writes_z = '1' then
+          flag_z.valid   <= '1';
+          flag_z.rob_tag <= rob_alloc_tag0;
+        end if;
+        if dec1.valid = '1' and dec1.writes_z = '1' then
+          flag_z.valid   <= '1';
+          if dec0.valid = '0' then
+            flag_z.rob_tag <= rob_alloc_tag0;
+          else
+            flag_z.rob_tag <= rob_alloc_tag1;
+          end if;
+        end if;
+
+      end if; -- stall = '0'
 
     end if;
   end process;

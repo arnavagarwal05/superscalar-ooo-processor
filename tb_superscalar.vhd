@@ -467,6 +467,142 @@ begin
     end_test;
 
     --------------------------------------------------------------------
+    -- T15: Store-to-load forwarding
+    --   SW then immediate LW to same address — load must get data
+    --   from store buffer before it drains to memory.
+    --   0x0000: LLI R1, 0xAB   -> R1 = 0x00AB (store data)
+    --   0x0002: LLI R2, 4      -> R2 = 0x0004 (address)
+    --   0x0004: SW  R1, R2, 0  -> SB[addr=4] = 0x00AB
+    --   0x0006: LW  R3, R2, 0  -> R3 = 0x00AB (forwarded from SB)
+    --   0x0008: BEQ R0,R0,0    -> halt
+    --------------------------------------------------------------------
+    begin_test("T15: Store-to-load forwarding");
+    wr_imem(16#0000#, x"32AB");  -- LLI R1, 0xAB
+    wr_imem(16#0002#, x"3404");  -- LLI R2, 4
+    wr_imem(16#0004#, x"5280");  -- SW R1, R2, 0
+    wr_imem(16#0006#, x"4680");  -- LW R3, R2, 0
+    wr_imem(16#0008#, x"8000");  -- halt
+    run_test(100);
+    test_ok := true;
+    check_reg("T15", 1, x"00AB");
+    check_reg("T15", 2, x"0004");
+    check_reg("T15", 3, x"00AB");
+    end_test;
+
+    --------------------------------------------------------------------
+    -- T16: Comprehensive stress test (31 instructions)
+    --
+    -- Phase 1 (0x00-0x0C): Init R1..R7 = 1..7
+    -- Phase 2 (0x0E-0x14): Dependency chain
+    --   ADA R1,R1,R2  -> R1 = 1+2 = 3
+    --   ADA R1,R1,R3  -> R1 = 3+3 = 6
+    --   ADA R1,R1,R4  -> R1 = 6+4 = 10
+    --   ADI R1,R1,5   -> R1 = 10+5 = 15
+    -- Phase 3 (0x16-0x1A): WAW hazard
+    --   LLI R2,10 then LLI R2,20 -> R2 = 20 (second wins)
+    --   ADI R3,R2,1   -> R3 = 21 (must use R2=20)
+    -- Phase 4 (0x1C-0x20): Store-to-load forwarding
+    --   LLI R4,0x50; SW R3,R4,0; LW R5,R4,0 -> R5 = 21
+    -- Phase 5 (0x22-0x2A): Predicated instructions
+    --   ADA R6,R5,R5  -> R6=42, C=0, Z=0
+    --   ADC R7,R1,R2  -> C=0 so NOP, R7 stays 7
+    --   LLI R6,0; ADA R6,R6,R6 -> R6=0, Z=1
+    --   ADZ R7,R1,R2  -> Z=1 so execute, R7=15+20=35
+    -- Phase 6 (0x2C-0x32): Branch taken + not-taken
+    --   BEQ R1,R2,2   -> not taken (15!=20)
+    --   LLI R6,0x42   -> executes (R6=66)
+    --   BEQ R1,R1,2   -> taken, skip next
+    --   LLI R6,0x99   -> SKIPPED
+    -- Phase 7 (0x34-0x3A): JAL jump-over
+    --   JAL R3,3      -> R3=0x36, jump to 0x3A
+    --   LLI R1,0xFF   -> SKIPPED
+    --   LLI R2,0xFF   -> SKIPPED
+    --   ADI R4,R5,10  -> R4 = 21+10 = 31
+    -- 0x3C: BEQ R0,R0,0 -> halt
+    --
+    -- Expected: R1=15, R2=20, R3=0x36, R4=31, R5=21, R6=66, R7=35
+    --------------------------------------------------------------------
+    begin_test("T16: Comprehensive (31 instr)");
+    -- Phase 1: init
+    wr_imem(16#0000#, x"3201");  -- LLI R1, 1
+    wr_imem(16#0002#, x"3402");  -- LLI R2, 2
+    wr_imem(16#0004#, x"3603");  -- LLI R3, 3
+    wr_imem(16#0006#, x"3804");  -- LLI R4, 4
+    wr_imem(16#0008#, x"3A05");  -- LLI R5, 5
+    wr_imem(16#000A#, x"3C06");  -- LLI R6, 6
+    wr_imem(16#000C#, x"3E07");  -- LLI R7, 7
+    -- Phase 2: dependency chain
+    wr_imem(16#000E#, x"1288");  -- ADA R1, R1, R2
+    wr_imem(16#0010#, x"12C8");  -- ADA R1, R1, R3
+    wr_imem(16#0012#, x"1308");  -- ADA R1, R1, R4
+    wr_imem(16#0014#, x"0245");  -- ADI R1, R1, 5
+    -- Phase 3: WAW
+    wr_imem(16#0016#, x"340A");  -- LLI R2, 10
+    wr_imem(16#0018#, x"3414");  -- LLI R2, 20
+    wr_imem(16#001A#, x"04C1");  -- ADI R3, R2, 1
+    -- Phase 4: store-load forwarding
+    wr_imem(16#001C#, x"3850");  -- LLI R4, 0x50
+    wr_imem(16#001E#, x"5700");  -- SW R3, R4, 0
+    wr_imem(16#0020#, x"4B00");  -- LW R5, R4, 0
+    -- Phase 5: predicated
+    wr_imem(16#0022#, x"1B70");  -- ADA R6, R5, R5  (sets C=0, Z=0)
+    wr_imem(16#0024#, x"12BA");  -- ADC R7, R1, R2  (C=0 -> NOP)
+    wr_imem(16#0026#, x"3C00");  -- LLI R6, 0
+    wr_imem(16#0028#, x"1DB0");  -- ADA R6, R6, R6  (0+0=0, Z=1)
+    wr_imem(16#002A#, x"12B9");  -- ADZ R7, R1, R2  (Z=1 -> R7=35)
+    -- Phase 6: branches
+    wr_imem(16#002C#, x"8282");  -- BEQ R1, R2, 2   (not taken)
+    wr_imem(16#002E#, x"3C42");  -- LLI R6, 0x42
+    wr_imem(16#0030#, x"8242");  -- BEQ R1, R1, 2   (taken -> 0x34)
+    wr_imem(16#0032#, x"3C99");  -- LLI R6, 0x99    (SKIPPED)
+    -- Phase 7: JAL
+    wr_imem(16#0034#, x"C603");  -- JAL R3, 3       (R3=0x36, -> 0x3A)
+    wr_imem(16#0036#, x"32FF");  -- LLI R1, 0xFF    (SKIPPED)
+    wr_imem(16#0038#, x"34FF");  -- LLI R2, 0xFF    (SKIPPED)
+    wr_imem(16#003A#, x"0B0A");  -- ADI R4, R5, 10
+    wr_imem(16#003C#, x"8000");  -- halt
+    run_test(500);
+    test_ok := true;
+    check_reg("T16", 1, x"000F");  -- 15
+    check_reg("T16", 2, x"0014");  -- 20
+    check_reg("T16", 3, x"0036");  -- JAL return addr
+    check_reg("T16", 4, x"001F");  -- 31
+    check_reg("T16", 5, x"0015");  -- 21 (forwarded load)
+    check_reg("T16", 6, x"0042");  -- 66 (branch skipped 0x99)
+    check_reg("T16", 7, x"0023");  -- 35 (ADZ executed)
+    end_test;
+
+    --------------------------------------------------------------------
+    -- T17: Loop test — sum 1..5 using backward BLT branch
+    --
+    --   0x00: LLI R1, 5       counter = 5
+    --   0x02: LLI R2, 0       accumulator = 0
+    --   loop:
+    --   0x04: ADA R2, R2, R1  acc += counter
+    --   0x06: ADI R1, R1, -1  counter--
+    --   0x08: BLT R0, R1, -2  if 0 < counter, branch to 0x04
+    --   exit:
+    --   0x0A: LLI R3, 0x55    marker (proves loop exited)
+    --   0x0C: BEQ R0, R0, 0   halt
+    --
+    -- 5 iterations: R2 = 5+4+3+2+1 = 15, R1 = 0, R3 = 0x55
+    --------------------------------------------------------------------
+    begin_test("T17: Loop (sum 1..5)");
+    wr_imem(16#0000#, x"3205");  -- LLI R1, 5
+    wr_imem(16#0002#, x"3400");  -- LLI R2, 0
+    wr_imem(16#0004#, x"1450");  -- ADA R2, R2, R1
+    wr_imem(16#0006#, x"027F");  -- ADI R1, R1, -1
+    wr_imem(16#0008#, x"907E");  -- BLT R0, R1, -2  (-> 0x04)
+    wr_imem(16#000A#, x"3655");  -- LLI R3, 0x55
+    wr_imem(16#000C#, x"8000");  -- halt
+    run_test(300);
+    test_ok := true;
+    check_reg("T17", 1, x"0000");  -- counter exhausted
+    check_reg("T17", 2, x"000F");  -- sum = 15
+    check_reg("T17", 3, x"0055");  -- exit marker
+    end_test;
+
+    --------------------------------------------------------------------
     -- Summary
     --------------------------------------------------------------------
     report "===========================================";
