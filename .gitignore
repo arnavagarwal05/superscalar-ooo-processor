@@ -1,0 +1,12 @@
+# GHDL build artifacts
+*.o
+*.ghw
+work-obj08.cf
+
+# Compiled simulation binaries
+tb_superscalar
+tb_instr
+e~*
+
+# Unwanted source files
+tb_superscalar.vhd

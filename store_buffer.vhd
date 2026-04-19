@@ -36,15 +36,15 @@ entity store_buffer is
     fwd_data       : out std_logic_vector(15 downto 0);
 
     -- Status
-    num_free : out unsigned(2 downto 0)  -- free entries count
+    num_free : out unsigned(3 downto 0)  -- free entries count
   );
 end entity;
 
 architecture rtl of store_buffer is
   signal entries : sb_array_t;
   -- FIFO pointers for ordering
-  signal wr_ptr   : unsigned(1 downto 0);  -- next write position
-  signal drain_ptr: unsigned(1 downto 0);  -- next entry to drain
+  signal wr_ptr   : unsigned(2 downto 0);  -- next write position
+  signal drain_ptr: unsigned(2 downto 0);  -- next entry to drain
 begin
 
   -----------------------------------------------------------------------
@@ -55,7 +55,7 @@ begin
   process(all)
     variable hit : std_logic;
     variable dat : std_logic_vector(15 downto 0);
-    variable idx : unsigned(1 downto 0);
+    variable idx : unsigned(2 downto 0);
   begin
     hit := '0';
     dat := (others => '0');
@@ -64,7 +64,7 @@ begin
       -- Iterate from oldest (drain_ptr) to newest (wr_ptr-1)
       -- 2-bit arithmetic wraps naturally, same as the pointers
       for j in 0 to SB_SIZE-1 loop
-        idx := drain_ptr + to_unsigned(j, 2);
+        idx := drain_ptr + to_unsigned(j, 3);
         if entries(to_integer(idx)).valid = '1'
           and entries(to_integer(idx)).addr = fwd_check_addr then
           hit := '1';
@@ -98,7 +98,7 @@ begin
   -- Free count
   -----------------------------------------------------------------------
   process(all)
-    variable cnt : unsigned(2 downto 0);
+    variable cnt : unsigned(3 downto 0);
   begin
     cnt := (others => '0');
     for i in 0 to SB_SIZE-1 loop
@@ -151,11 +151,11 @@ begin
         if cdb1.valid = '1' and cdb1.is_store = '1' then
           -- If cdb0 also wrote this cycle, wr_ptr already advanced
           if cdb0.valid = '1' and cdb0.is_store = '1' then
-            entries(to_integer(wr_ptr + 1)).valid     <= '1';
-            entries(to_integer(wr_ptr + 1)).addr      <= cdb1.store_addr;
-            entries(to_integer(wr_ptr + 1)).data      <= cdb1.store_data;
-            entries(to_integer(wr_ptr + 1)).rob_tag   <= cdb1.rob_tag;
-            entries(to_integer(wr_ptr + 1)).committed <= '0';
+            entries(to_integer(wr_ptr + to_unsigned(1,3))).valid     <= '1';
+            entries(to_integer(wr_ptr + to_unsigned(1,3))).addr      <= cdb1.store_addr;
+            entries(to_integer(wr_ptr + to_unsigned(1,3))).data      <= cdb1.store_data;
+            entries(to_integer(wr_ptr + to_unsigned(1,3))).rob_tag   <= cdb1.rob_tag;
+            entries(to_integer(wr_ptr + to_unsigned(1,3))).committed <= '0';
             wr_ptr <= wr_ptr + 2;
           else
             entries(to_integer(wr_ptr)).valid     <= '1';

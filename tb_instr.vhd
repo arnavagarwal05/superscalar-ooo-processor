@@ -3,11 +3,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.pkg.all;
 
--- Simple per-instruction testbench
--- Tests each instruction independently with a short program + halt
--- Skips LM/SM (not implemented)
---
--- Encoding cheat-sheet:
+
+-- Encoding:
 --   LLI  Rd, k    : 0011_Rd_k[8:0]                       0x3000|(Rd<<9)|k
 --   ADI  Rd, Rs, k: 0000_Rs_Rd_k[5:0]  (Rs=src, Rd=dst)  0x0000|(Rs<<9)|(Rd<<6)|k
 --   ADD  Rc,Ra,Rb  : 0001_Ra_Rb_Rc_cmp_cond               0x1000|(Ra<<9)|(Rb<<6)|(Rc<<3)|(cmp<<2)|cond
@@ -486,11 +483,29 @@ begin
     chk("LW", 3, x"ABCD");
 
     --------------------------------------------------------------------------
+    -- T27: LM — Load Multiple
+    --   Pre-init dmem[0x10]=0x1111, dmem[0x12]=0x2222
+    --   LLI R5,0x10   ; LM R5,{R1,R2} -> R1=0x1111, R2=0x2222
+    --
+    --   LM encoding: 0110 | RA(3b) | 0 | reglist[7:0]
+    --     reglist: bit7=R0, bit6=R1, bit5=R2, ..., bit0=R7
+    --   LM R5,{R1,R2}: 0110_101_0_01100000 = 0x6A60
+    --------------------------------------------------------------------------
+    report "=== T27: LM (load multiple) ===";
+    setup;
+    wd(16#10#, x"1111");           -- dmem[0x10] = 0x1111
+    wd(16#12#, x"2222");           -- dmem[0x12] = 0x2222
+    wi(16#00#, x"3A10");           -- LLI R5, 0x10
+    wi(16#02#, x"6A60");           -- LM  R5, {R1,R2}
+    halt_here(16#04#);
+    go(150);
+    chk("LM->R1", 1, x"1111");
+    chk("LM->R2", 2, x"2222");
+
+    --------------------------------------------------------------------------
     -- Summary
     --------------------------------------------------------------------------
-    report "======================================";
     report "RESULT: " & integer'image(passed) & " / " & integer'image(total) & " checks passed";
-    report "======================================";
     wait;
   end process;
 

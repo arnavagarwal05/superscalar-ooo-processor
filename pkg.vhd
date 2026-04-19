@@ -14,8 +14,8 @@ package pkg is
   constant ROB_SIZE : integer := 16;
   constant RS_BITS  : integer := 3;   -- 8 RS entries
   constant RS_SIZE  : integer := 8;
-  constant SB_BITS  : integer := 2;   -- 4 store buffer entries
-  constant SB_SIZE  : integer := 4;
+  constant SB_BITS  : integer := 3;   -- 8 store buffer entries
+  constant SB_SIZE  : integer := 8;
   constant BHT_BITS : integer := 4;   -- 16 BHT entries
   constant BHT_SIZE : integer := 16; --
 

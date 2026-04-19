@@ -111,7 +111,7 @@ architecture rtl of superscalar_top is
   signal sb_fwd_en                      : std_logic;
   signal sb_fwd_hit                     : std_logic;
   signal sb_fwd_data                    : std_logic_vector(15 downto 0);
-  signal sb_num_free                    : unsigned(2 downto 0);
+  signal sb_num_free                    : unsigned(3 downto 0);
 
   -- Data memory
   signal dmem_a_addr, dmem_a_din, dmem_a_dout : std_logic_vector(15 downto 0);
